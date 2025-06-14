@@ -95,113 +95,133 @@
   </div>
 
   <script>
-    const ASTROLOGY_API_KEY = "QW7HuNu0zm9rZmIfCd9xM2m0bcNdYPti4GsIHH2J";
-    const GEMINI_API_KEY = "AIzaSyCQ8UKs9qDqv3137MEXes-8RcRk5MU--4I";
+  const ASTROLOGY_API_KEY_PRIMARY = "QW7HuNu0zm9rZmIfCd9xM2m0bcNdYPti4GsIHH2J";
+  const ASTROLOGY_API_KEY_BACKUP = "Pt0HZPrfbc5HTHeq7TReg3K9F4xoNawL5quDOQ54";
+  const GEMINI_API_KEY = "AIzaSyCQ8UKs9qDqv3137MEXes-8RcRk5MU--4I";
 
-    document.getElementById("astroForm").addEventListener("submit", async function (e) {
-      e.preventDefault();
+  async function fetchWithFallback(url, payload, key1, key2) {
+    try {
+      const res1 = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": key1
+        },
+        body: JSON.stringify(payload)
+      });
+      if (!res1.ok) throw new Error("Primary API failed");
+      return await res1.json();
+    } catch {
+      const res2 = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": key2
+        },
+        body: JSON.stringify(payload)
+      });
+      if (!res2.ok) throw new Error("Backup API also failed");
+      return await res2.json();
+    }
+  }
 
-      const form = new FormData(this);
-      const dob = new Date(form.get("dob") + "T" + form.get("tob"));
-      const d1Output = document.getElementById("d1Output");
-      const d9Output = document.getElementById("d9Output");
-      const geminiOutput = document.getElementById("geminiOutput");
+  document.getElementById("astroForm").addEventListener("submit", async function (e) {
+    e.preventDefault();
 
-      d1Output.textContent = "Fetching D1 chart...";
-      d9Output.textContent = "Fetching D9 chart...";
-      geminiOutput.textContent = "Waiting for charts...";
+    const form = new FormData(this);
+    const dob = new Date(form.get("dob") + "T" + form.get("tob"));
+    const d1Output = document.getElementById("d1Output");
+    const d9Output = document.getElementById("d9Output");
+    const geminiOutput = document.getElementById("geminiOutput");
 
-      // Using fixed Mumbai coordinates. Replace with dynamic if needed
-      const latitude = 18.9667;
-      const longitude = 72.8333;
+    d1Output.textContent = "Fetching D1 chart...";
+    d9Output.textContent = "Fetching D9 chart...";
+    geminiOutput.textContent = "Waiting for charts...";
 
-      const payload = {
-        year: dob.getFullYear(),
-        month: dob.getMonth() + 1,
-        date: dob.getDate(),
-        hours: dob.getHours(),
-        minutes: dob.getMinutes(),
-        seconds: 0,
-        latitude,
-        longitude,
-        timezone: parseFloat(form.get("timezone")),
-        settings: {
-          observation_point: "topocentric",
-          ayanamsha: "lahiri"
-        }
-      };
+    const latitude = 18.9667;
+    const longitude = 72.8333;
 
-      try {
-        // Fetch D1 Chart
-        const d1Res = await fetch("https://json.freeastrologyapi.com/planets/extended", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-api-key": ASTROLOGY_API_KEY
-          },
-          body: JSON.stringify(payload)
-        });
-        const d1Data = await d1Res.json();
-        const d1Text = d1Data.output ? JSON.stringify(d1Data.output, null, 2) : "No D1 data";
-        d1Output.textContent = d1Text;
-
-        // Fetch D9 Chart
-        const d9Res = await fetch("https://json.freeastrologyapi.com/navamsa-chart-info", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-api-key": ASTROLOGY_API_KEY
-          },
-          body: JSON.stringify(payload)
-        });
-        const d9Data = await d9Res.json();
-        const d9Text = d9Data.output ? JSON.stringify(d9Data.output, null, 2) : "No D9 data";
-        d9Output.textContent = d9Text;
-
-        // Send data to Gemini API
-        const fullChartText = `📍 Location: ${form.get("location")}\n\n🌟 D1 Chart:\n${d1Text}\n\n🌌 D9 Chart:\n${d9Text}`;
-
-        const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{
-              parts: [{
-                text: `me tujhe apni api k output show krne k liye use kr raha hu...to tujhe basically ek proper format me expert astrologer ki 
-                thrah output dena hai..mtlb aisa lagna chahiye ki tu ek human hai...properly har ek chij k baare me study
-                life,love life , khubiya , personality bilkul professional astrologer ki thrah tujhe batana hai..tera output 
-                ab show hoga..to dhyaan rakhiyo...sirf kaam ki baat bataiyo..kyuki tera output meri app pr show hoga..tu ek 
-                professional astrologer hai.properly details me batahiyo..me tujhe uska d9 aur d1 chart de raha hu..yaad rakhiyo
-                tu jo bhi bolega..vo mere app pr show hoga..to sirf kaam ki baat..har ek detail about each and every trait..uski
-                proper personality and everything.. bhai...please sahi se reply kriyo..meri website pr display hoga
-                be professional..tu ek advance astrologer hai bs prediction de...vo bhi hindi me pr english me likha hai..
-                mtlb ki english language me hindi me likha hona chahiye.....mtlb jaise
-                me baat kar raha hu..tujhe bhi waise bhi baat krni hai...
-                and please generate about each and every thing..mtlb proper detail
-                mtlb ki proper bhut jada long format me..
-                uss insaan k har ek house k baare me bataiyo ki konsa planet hai..uska kya matlba hota hai..
-                konsi rashi hai..uska kya significance hota hai...
-                sub loard aur loard kya kya significance hai..
-                konse house ka lord kis house me hai..uska kya significance hota hai
-                kam se kam 400 lines likhiyo proper detal me taaki user ko puri thrah apni har planets k baare me pata lag jaaye...
-                400 lines se kam mt likhiyo...
-                
-                tujhe basically hindi me batana hai pr english me likha hai..:\n\n${fullChartText}`
-              }]
-            }]
-          })
-        });
-
-        const geminiData = await geminiResponse.json();
-        const analysis = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "Gemini did not return analysis.";
-        geminiOutput.textContent = analysis;
-
-      } catch (error) {
-        d1Output.textContent = "❌ D1 Error: " + error.message;
-        d9Output.textContent = "❌ D9 Error: " + error.message;
-        geminiOutput.textContent = "❌ Gemini Error: " + error.message;
+    const payload = {
+      year: dob.getFullYear(),
+      month: dob.getMonth() + 1,
+      date: dob.getDate(),
+      hours: dob.getHours(),
+      minutes: dob.getMinutes(),
+      seconds: 0,
+      latitude,
+      longitude,
+      timezone: parseFloat(form.get("timezone")),
+      settings: {
+        observation_point: "topocentric",
+        ayanamsha: "lahiri"
       }
-    });
-  </script>
+    };
+
+    try {
+      // Fetch D1 with fallback
+      const d1Data = await fetchWithFallback(
+        "https://json.freeastrologyapi.com/planets/extended",
+        payload,
+        ASTROLOGY_API_KEY_PRIMARY,
+        ASTROLOGY_API_KEY_BACKUP
+      );
+      const d1Text = d1Data.output ? JSON.stringify(d1Data.output, null, 2) : "No D1 data";
+      d1Output.textContent = d1Text;
+
+      // Fetch D9 with fallback
+      const d9Data = await fetchWithFallback(
+        "https://json.freeastrologyapi.com/navamsa-chart-info",
+        payload,
+        ASTROLOGY_API_KEY_PRIMARY,
+        ASTROLOGY_API_KEY_BACKUP
+      );
+      const d9Text = d9Data.output ? JSON.stringify(d9Data.output, null, 2) : "No D9 data";
+      d9Output.textContent = d9Text;
+
+      const fullChartText = `📍 Location: ${form.get("location")}\n\n🌟 D1 Chart:\n${d1Text}\n\n🌌 D9 Chart:\n${d9Text}`;
+
+      const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: `me tujhe apni api k output show krne k liye use kr raha hu...to tujhe basically ek proper format me expert astrologer ki 
+              thrah output dena hai..mtlb aisa lagna chahiye ki tu ek human hai...properly har ek chij k baare me study
+              life,love life , khubiya , personality bilkul professional astrologer ki thrah tujhe batana hai..tera output 
+              ab show hoga..to dhyaan rakhiyo...sirf kaam ki baat bataiyo..kyuki tera output meri app pr show hoga..tu ek 
+              professional astrologer hai.properly details me batahiyo..me tujhe uska d9 aur d1 chart de raha hu..yaad rakhiyo
+              tu jo bhi bolega..vo mere app pr show hoga..to sirf kaam ki baat..har ek detail about each and every trait..uski
+              proper personality and everything.. bhai...please sahi se reply kriyo..meri website pr display hoga
+              be professional..tu ek advance astrologer hai bs prediction de...vo bhi hindi me pr english me likha hai..
+              mtlb ki english language me hindi me likha hona chahiye.....mtlb jaise
+              me baat kar raha hu..tujhe bhi waise bhi baat krni hai...
+              and please generate about each and every thing..mtlb proper detail
+              mtlb ki proper bhut jada long format me..
+              uss insaan k har ek house k baare me bataiyo ki konsa planet hai..uska kya matlba hota hai..
+              konsi rashi hai..uska kya significance hota hai...
+              sub loard aur loard kya kya significance hai..
+              konse house ka lord kis house me hai..uska kya significance hota hai
+              kam se kam 400 lines likhiyo proper detal me taaki user ko puri thrah apni har planets k baare me pata lag jaaye...
+              400 lines se kam mt likhiyo...
+
+              tujhe basically hindi me batana hai pr english me likha hai..:\n\n${fullChartText}`
+            }]
+          }]
+        })
+      });
+
+      const geminiData = await geminiResponse.json();
+      const analysis = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "Gemini did not return analysis.";
+      geminiOutput.textContent = analysis;
+
+    } catch (error) {
+      d1Output.textContent = "❌ D1 Error: " + error.message;
+      d9Output.textContent = "❌ D9 Error: " + error.message;
+      geminiOutput.textContent = "❌ Gemini Error: " + error.message;
+    }
+  });
+</script>
+
 </body>
 </html>
