@@ -1,28 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>D1 & D9 Chart Reader with Gemini</title>
+  <meta charset="UTF-8">
+  <title>D1 & D9 Chart with Gemini Analysis</title>
   <style>
     body {
       font-family: 'Segoe UI', sans-serif;
       background-color: #f4f6f8;
       padding: 40px;
-      max-width: 800px;
+      max-width: 700px;
       margin: auto;
     }
-
     h2 {
       color: #222;
-      margin-bottom: 20px;
     }
-
     label {
       display: block;
       font-weight: 600;
       margin-top: 15px;
     }
-
     input, select, button {
       width: 100%;
       padding: 10px;
@@ -30,9 +26,7 @@
       margin-top: 5px;
       border: 1px solid #ccc;
       border-radius: 6px;
-      box-sizing: border-box;
     }
-
     button {
       background-color: #007BFF;
       color: white;
@@ -40,11 +34,9 @@
       cursor: pointer;
       margin-top: 25px;
     }
-
     button:hover {
       background-color: #0056b3;
     }
-
     .section {
       background: white;
       padding: 20px;
@@ -52,22 +44,6 @@
       border-radius: 8px;
       border: 1px solid #ddd;
     }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 10px;
-    }
-
-    table, th, td {
-      border: 1px solid #ccc;
-    }
-
-    th, td {
-      padding: 8px;
-      text-align: left;
-    }
-
     pre {
       background: #f1f1f1;
       padding: 10px;
@@ -79,165 +55,134 @@
 </head>
 <body>
 
-  <h2>Astrology Chart (D1 & D9) + Gemini Analysis</h2>
+  <h2>Astrology Chart + Gemini Analysis</h2>
 
   <form id="astroForm">
     <label>Date of Birth:
       <input type="date" name="dob" required>
     </label>
-
     <label>Time of Birth:
       <input type="time" name="tob" required>
     </label>
-
-    <label>Location (City in India):
-      <input type="text" name="location" placeholder="e.g. Panchkula" required>
+    <label>Location (City, Country):
+      <input type="text" name="location" value="Mumbai, India" required>
     </label>
-
     <label>Timezone:
       <select name="timezone" required>
-        <option value="5.5" selected>India Standard Time (IST) +5:30</option>
+        <option value="5.5" selected>IST (+5:30)</option>
+        <option value="0">GMT (0)</option>
+        <option value="-5">EST (-5:00)</option>
+        <option value="1">CET (+1:00)</option>
+        <option value="8">CST (+8:00)</option>
       </select>
     </label>
-
-    
-
-    <button type="submit">Generate Chart & Analyze</button>
+    <button type="submit">Generate Chart + Analyze</button>
   </form>
 
   <div class="section">
-    <h2>D1 Chart Info</h2>
-    <div id="d1Table">Awaiting input...</div>
+    <h2>D1 Chart (Rasi)</h2>
+    <pre id="d1Output">Awaiting input...</pre>
   </div>
 
   <div class="section">
-    <h2>D9 Chart Info</h2>
-    <div id="d9Table">Awaiting input...</div>
+    <h2>D9 Chart (Navamsa)</h2>
+    <pre id="d9Output">Awaiting input...</pre>
   </div>
 
   <div class="section">
-    <h2>🧠 Gemini Analysis</h2>
-    <pre id="geminiResult">Awaiting analysis...</pre>
+    <h2>🧠 Gemini AI Analysis</h2>
+    <pre id="geminiOutput">Awaiting input...</pre>
   </div>
 
   <script>
     const ASTROLOGY_API_KEY = "QW7HuNu0zm9rZmIfCd9xM2m0bcNdYPti4GsIHH2J";
     const GEMINI_API_KEY = "AIzaSyCQ8UKs9qDqv3137MEXes-8RcRk5MU--4I";
 
-    async function getCoordinates(location) {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(location + ', India')}`);
-      const data = await res.json();
-      if (!data.length) throw new Error("Location not found");
-      return {
-        lat: parseFloat(data[0].lat),
-        lng: parseFloat(data[0].lon),
-      };
-    }
-
-    function generateTable(data) {
-      if (!Array.isArray(data)) return "<p>No data found.</p>";
-
-      let table = "<table><tr>";
-      Object.keys(data[0]).forEach(key => table += `<th>${key}</th>`);
-      table += "</tr>";
-
-      data.forEach(row => {
-        table += "<tr>";
-        Object.values(row).forEach(value => {
-          table += `<td>${value}</td>`;
-        });
-        table += "</tr>";
-      });
-
-      table += "</table>";
-      return table;
-    }
-
     document.getElementById("astroForm").addEventListener("submit", async function (e) {
       e.preventDefault();
 
       const form = new FormData(this);
       const dob = new Date(form.get("dob") + "T" + form.get("tob"));
-      const location = form.get("location");
+      const d1Output = document.getElementById("d1Output");
+      const d9Output = document.getElementById("d9Output");
+      const geminiOutput = document.getElementById("geminiOutput");
 
-      const d1Table = document.getElementById("d1Table");
-      const d9Table = document.getElementById("d9Table");
-      const geminiResult = document.getElementById("geminiResult");
+      d1Output.textContent = "Fetching D1 chart...";
+      d9Output.textContent = "Fetching D9 chart...";
+      geminiOutput.textContent = "Waiting for charts...";
 
-      d1Table.innerHTML = "Loading D1 Chart...";
-      d9Table.innerHTML = "Loading D9 Chart...";
-      geminiResult.textContent = "Analyzing...";
+      // Using fixed Mumbai coordinates. Replace with dynamic if needed
+      const latitude = 18.9667;
+      const longitude = 72.8333;
+
+      const payload = {
+        year: dob.getFullYear(),
+        month: dob.getMonth() + 1,
+        date: dob.getDate(),
+        hours: dob.getHours(),
+        minutes: dob.getMinutes(),
+        seconds: 0,
+        latitude,
+        longitude,
+        timezone: parseFloat(form.get("timezone")),
+        settings: {
+          observation_point: "topocentric",
+          ayanamsha: "lahiri"
+        }
+      };
 
       try {
-        const coords = await getCoordinates(location);
-
-        const payload = {
-          year: dob.getFullYear(),
-          month: dob.getMonth() + 1,
-          date: dob.getDate(),
-          hours: dob.getHours(),
-          minutes: dob.getMinutes(),
-          seconds: 0,
-          latitude: coords.lat,
-          longitude: coords.lng,
-          timezone: parseFloat(form.get("timezone")),
-          settings: {
-            observation_point: "topocentric",
-            ayanamsha: "lahiri",
-            language: form.get("language")
-          }
-        };
-
-        const [d1Res, d9Res] = await Promise.all([
-          fetch("https://json.freeastrologyapi.com/planets/extended", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "x-api-key": ASTROLOGY_API_KEY
-            },
-            body: JSON.stringify(payload)
-          }),
-          fetch("https://json.freeastrologyapi.com/navamsa-chart-info", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "x-api-key": ASTROLOGY_API_KEY
-            },
-            body: JSON.stringify(payload)
-          })
-        ]);
-
+        // Fetch D1 Chart
+        const d1Res = await fetch("https://json.freeastrologyapi.com/planets/extended", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": ASTROLOGY_API_KEY
+          },
+          body: JSON.stringify(payload)
+        });
         const d1Data = await d1Res.json();
+        const d1Text = d1Data.output ? JSON.stringify(d1Data.output, null, 2) : "No D1 data";
+        d1Output.textContent = d1Text;
+
+        // Fetch D9 Chart
+        const d9Res = await fetch("https://json.freeastrologyapi.com/navamsa-chart-info", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": ASTROLOGY_API_KEY
+          },
+          body: JSON.stringify(payload)
+        });
         const d9Data = await d9Res.json();
+        const d9Text = d9Data.output ? JSON.stringify(d9Data.output, null, 2) : "No D9 data";
+        d9Output.textContent = d9Text;
 
-        const d1Formatted = d1Data.output || [];
-        const d9Formatted = d9Data.output || [];
-
-        d1Table.innerHTML = generateTable(d1Formatted);
-        d9Table.innerHTML = generateTable(d9Formatted);
-
-        const combinedText = `Location: ${location}\n\n🌟 D1 Chart:\n${JSON.stringify(d1Formatted, null, 2)}\n\n🌌 D9 Chart:\n${JSON.stringify(d9Formatted, null, 2)}`;
+        // Send data to Gemini API
+        const fullChartText = `📍 Location: ${form.get("location")}\n\n🌟 D1 Chart:\n${d1Text}\n\n🌌 D9 Chart:\n${d9Text}`;
 
         const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: `Please analyze the following D1 and D9 astrology chart data:\n\n${combinedText}` }] }]
+            contents: [{
+              parts: [{
+                text: `me tujhe apni api k output show krne k liye use kr raha hu...to tujhe basically ek proper format me expert astrologer ki thrah output dena hai..mtlb aisa lagna chahiye ki tu ek human hai...properly har ek chij k baare me study life,love life , khubiya , personality bilkul professional astrologer ki thrah tujhe batana hai..tera output ab show hoga..to dhyaan rakhiyo...sirf kaam ki baat bataiyo..kyuki tera output meri app pr show hoga..tu ek professional astrologer hai.properly details me batahiyo..me tujhe uska d9 aur d1 chart de raha hu..yaad rakhiyo tu jo bhi bolega..vo mere app pr show hoga..to sirf kaam ki baat..har ek detail about each and every trait..uski proper personality and everything..be professional..tu ek advance astrologer hai:\n\n${fullChartText}`
+              }]
+            }]
           })
         });
 
-        const geminiJson = await geminiResponse.json();
-        const analysis = geminiJson.candidates?.[0]?.content?.parts?.[0]?.text || "Gemini analysis not available.";
+        const geminiData = await geminiResponse.json();
+        const analysis = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "Gemini did not return analysis.";
+        geminiOutput.textContent = analysis;
 
-        geminiResult.textContent = analysis;
-
-      } catch (err) {
-        d1Table.innerHTML = d9Table.innerHTML = "";
-        geminiResult.textContent = "❌ Error: " + err.message;
-        console.error(err);
+      } catch (error) {
+        d1Output.textContent = "❌ D1 Error: " + error.message;
+        d9Output.textContent = "❌ D9 Error: " + error.message;
+        geminiOutput.textContent = "❌ Gemini Error: " + error.message;
       }
     });
   </script>
-
 </body>
 </html>
